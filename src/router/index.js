@@ -11,9 +11,25 @@ const routes = [
 
 const router = createRouter({ history: createWebHistory(), routes })
 
-router.beforeEach((to) => {
+// 本地 token 每次会话只校验一次, 避免每次跳转都打接口
+let tokenChecked = false
+
+router.beforeEach(async (to) => {
   const token = localStorage.getItem('token')
   if (to.path !== '/login' && !token) return '/login'
+
+  // 有 token 但本次会话尚未校验: 调 /auth/me 确认它仍有效 (过期/被删则踢回登录)
+  if (token && !tokenChecked && to.path !== '/login') {
+    try {
+      const { fetchMe } = await import('@/api/auth')
+      await fetchMe()
+      tokenChecked = true
+    } catch {
+      localStorage.removeItem('token')
+      return '/login'
+    }
+  }
+
   document.title = `${to.meta.title || ''} · 瞳伴随行家属端`
 })
 
