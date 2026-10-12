@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<!--
+    "瞳汐 · Tidal Aperture" — a generative login visual for 瞳伴随行.
+    Built from the algorithmic-art viewer template: the shell (header, sidebar,
+    Anthropic branding, seed controls, actions) is kept as-is; the algorithm,
+    parameters and the login card are the authored content.
+-->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>瞳汐 · Tidal Aperture — 登录视觉</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section { margin-bottom: 32px; }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before { content: '•'; color: var(--anthropic-orange); font-weight: bold; }
+
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .regen-button { margin-bottom: 0; }
+
+        .control-group { margin-bottom: 20px; }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); background: #c86641; }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .color-group { margin-bottom: 16px; }
+
+        .color-group label { display: block; font-size: 12px; color: var(--anthropic-mid-gray); margin-bottom: 4px; }
+
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+
+        .color-picker-container input[type="color"] {
+            width: 32px; height: 32px; border: none; border-radius: 6px;
+            cursor: pointer; background: none; padding: 0;
+        }
+
+        .color-value { font-family: 'Courier New', monospace; font-size: 12px; color: var(--anthropic-mid-gray); }
+
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+
+        .button-row { display: flex; gap: 8px; }
+        .button-row .button { flex: 1; }
+
+        .canvas-area { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+        }
+
+        #canvas-container canvas { display: block; width: 100% !important; height: auto !important; }
+
+        .loading { display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--anthropic-mid-gray); }
+
+        @media (max-width: 600px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .canvas-area { padding: 20px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           LOGIN CARD OVERLAY — the authored content of this piece
+           ═══════════════════════════════════════════════════════════ */
+        #canvas-container { position: relative; }
+
+        .login-card {
+            position: absolute;
+            top: 50%;
+            right: 5.5%;
+            transform: translateY(-50%);
+            width: 33%;
+            max-width: 330px;
+            padding: 28px 26px 24px;
+            border-radius: 18px;
+            background: rgba(7, 28, 54, 0.34);
+            backdrop-filter: blur(18px) saturate(150%);
+            -webkit-backdrop-filter: blur(18px) saturate(150%);
+            border: 1px solid rgba(190, 230, 255, 0.38);
+            box-shadow: 0 24px 60px rgba(6, 26, 52, 0.35),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+            color: #f2fbff;
+            font-family: 'Poppins', 'Noto Serif SC', sans-serif;
+        }
+
+        .login-card .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+
+        .login-card .logo {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 36%, #ffffff 0%, #63b8ec 46%, #1b4f86 100%);
+            box-shadow: 0 0 16px rgba(150, 216, 255, 0.85);
+            animation: breathe 4.6s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1);    box-shadow: 0 0 14px rgba(140, 208, 255, 0.7); }
+            50%      { transform: scale(1.12); box-shadow: 0 0 28px rgba(180, 228, 255, 1); }
+        }
+
+        .login-card h2 {
+            font-family: 'Lora', 'Noto Serif SC', serif;
+            font-size: 21px;
+            font-weight: 500;
+            letter-spacing: 3px;
+        }
+
+        .login-card .tag { font-size: 11px; color: #c6e4fb; letter-spacing: 1.5px; margin-bottom: 22px; }
+        .login-card .field { margin-bottom: 13px; }
+
+        .login-card label { display: block; font-size: 11px; color: #cfe7fb; margin-bottom: 6px; letter-spacing: 1px; }
+
+        .login-card input {
+            width: 100%;
+            padding: 11px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(190, 230, 255, 0.3);
+            background: rgba(255, 255, 255, 0.14);
+            color: #f2fbff;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .login-card input:focus {
+            border-color: #eaf8ff;
+            box-shadow: 0 0 0 3px rgba(190, 230, 255, 0.22);
+            background: rgba(255, 255, 255, 0.22);
+        }
+
+        .login-card input::placeholder { color: #a9cbe6; }
+
+        .login-card .submit {
+            width: 100%;
+            margin-top: 9px;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 4px;
+            color: #06213f;
+            background: linear-gradient(120deg, #eaf8ff, #79c2f0 58%, #c4ecff);
+            box-shadow: 0 10px 26px rgba(120, 190, 240, 0.5);
+            transition: all 0.25s ease;
+        }
+
+        .login-card .submit:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(120, 190, 240, 0.7); }
+
+        .login-card .hint { margin-top: 14px; font-size: 10.5px; color: #a9cbe6; text-align: center; letter-spacing: 0.6px; }
+
+        @media (max-width: 900px) {
+            .login-card { position: static; transform: none; width: auto; max-width: none; margin: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>瞳汐 · Tidal Aperture</h1>
+            <div class="subtitle">瞳伴随行 · 蓝色潮汐瞳孔 · 生成式登录视觉</div>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="20240512" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>光尘数量 · Motes</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="600" max="6000" step="200" value="3400" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">3400</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>流场尺度 · Flow Scale</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseScale" min="0.0006" max="0.005" step="0.0002" value="0.0016" oninput="updateParam('noiseScale', this.value)">
+                        <span class="value-display" id="noiseScale-value">0.0016</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>漂移速度 · Drift</label>
+                    <div class="slider-container">
+                        <input type="range" id="driftSpeed" min="0.2" max="2.5" step="0.1" value="1" oninput="updateParam('driftSpeed', this.value)">
+                        <span class="value-display" id="driftSpeed-value">1</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>拖尾余韵 · Trail (小而长)</label>
+                    <div class="slider-container">
+                        <input type="range" id="trailFade" min="3" max="30" step="1" value="8" oninput="updateParam('trailFade', this.value)">
+                        <span class="value-display" id="trailFade-value">8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>涟漪频率 · Ripple Rate</label>
+                    <div class="slider-container">
+                        <input type="range" id="rippleRate" min="0.3" max="3" step="0.1" value="1.4" oninput="updateParam('rippleRate', this.value)">
+                        <span class="value-display" id="rippleRate-value">1.4</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>涟漪重数 · Rings</label>
+                    <div class="slider-container">
+                        <input type="range" id="rippleCount" min="2" max="14" step="1" value="10" oninput="updateParam('rippleCount', this.value)">
+                        <span class="value-display" id="rippleCount-value">10</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>呼吸幅度 · Breath</label>
+                    <div class="slider-container">
+                        <input type="range" id="breath" min="0" max="1" step="0.05" value="0.6" oninput="updateParam('breath', this.value)">
+                        <span class="value-display" id="breath-value">0.6</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors Section -->
+            <div class="control-section">
+                <h3>Colors</h3>
+
+                <div class="color-group">
+                    <label>深海 · Abyss</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#123a63" onchange="updateColor(0, this.value)">
+                        <span class="color-value" id="color1-value">#123a63</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>潮蓝 · Tide</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#4a9fd8" onchange="updateColor(1, this.value)">
+                        <span class="color-value" id="color2-value">#4a9fd8</span>
+                    </div>
+                </div>
+
+                <div class="color-group">
+                    <label>晨光 · Glow</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#eaf8ff" onchange="updateColor(2, this.value)">
+                        <span class="color-value" id="color3-value">#eaf8ff</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                    <button class="button secondary" onclick="initializeSystem()">Regenerate</button>
+                </div>
+                <div class="button-row" style="margin-top:8px;">
+                    <button class="button tertiary" onclick="downloadPNG()">Download PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing generative art...</div>
+
+                <!-- Authored: the login card that the art sits behind -->
+                <form class="login-card" onsubmit="return false;">
+                    <div class="brand">
+                        <div class="logo"></div>
+                        <h2>瞳伴随行</h2>
+                    </div>
+                    <div class="tag">家属守护 · 出行信息服务平台</div>
+                    <div class="field">
+                        <label for="login-user">账号</label>
+                        <input id="login-user" name="username" type="text" placeholder="test" autocomplete="username">
+                    </div>
+                    <div class="field">
+                        <label for="login-pass">密码</label>
+                        <input id="login-pass" name="password" type="password" placeholder="••••••" autocomplete="current-password">
+                    </div>
+                    <button class="submit" type="submit">登 录</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // 瞳汐 · Tidal Aperture — parameters
+        // ═══════════════════════════════════════════════════════════════════
+        let params = {
+            seed: 20240512,
+            particleCount: 3400,
+            noiseScale: 0.0016,
+            driftSpeed: 1.0,
+            trailFade: 8,
+            rippleRate: 1.4,
+            rippleCount: 10,
+            breath: 0.6,
+            palette: ['#123a63', '#4a9fd8', '#eaf8ff']
+        };
+
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        let particles = [];
+        let ripples = [];
+        let gradientColors = [];
+        let bgImg = null;
+        let orbs = [];
+        let sparkles = [];
+        let fibers = [];
+        let focus = { x: 0, y: 0 };
+        let maxR = 1000;
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Setup / system (re)initialisation
+        // ═══════════════════════════════════════════════════════════════════
+        function setup() {
+            let canvas = createCanvas(1280, 780);
+            canvas.parent('canvas-container');
+            pixelDensity(1);
+            initializeSystem();
+            let l = document.querySelector('.loading');
+            if (l) l.style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            focus = { x: width * 0.34, y: height * 0.5 };
+            maxR = Math.hypot(
+                Math.max(focus.x, width - focus.x),
+                Math.max(focus.y, height - focus.y)
+            );
+
+            buildBackground();
+            buildGradient();
+
+            // motes — flow-field drifters
+            particles = [];
+            for (let i = 0; i < params.particleCount; i++) particles.push(new Particle(true));
+
+            // bokeh — soft glowing orbs for depth
+            orbs = [];
+            for (let i = 0; i < 56; i++) orbs.push(new Orb());
+
+            // twinkling sparkles
+            sparkles = [];
+            for (let i = 0; i < 150; i++) {
+                sparkles.push({
+                    x: random(width), y: random(height),
+                    r: random(0.6, 2.4),
+                    ph: random(TWO_PI),
+                    sp: random(0.012, 0.05)
+                });
+            }
+
+            // iris fibres — faint radial texture around the pupil
+            fibers = [];
+            for (let i = 0; i < 120; i++) {
+                fibers.push({
+                    a: random(TWO_PI),
+                    r0: random(70, 160),
+                    r1: random(320, 640),
+                    w: random(0.4, 1.1),
+                    off: random(1000)
+                });
+            }
+
+            // seed a few rings so the piece is rich on the very first frame
+            ripples = [];
+            for (let i = 0; i < params.rippleCount; i++) {
+                ripples.push({
+                    r: map(i, 0, params.rippleCount, 20, maxR * 0.9),
+                    speed: random(1.6, 2.4),
+                    off: random(1000)
+                });
+            }
+
+            image(bgImg, 0, 0, width, height);
+        }
+
+        // graded, airy backdrop drawn once and faded into each frame
+        function buildBackground() {
+            bgImg = createGraphics(width, height);
+            bgImg.pixelDensity(1);
+            const ctx = bgImg.drawingContext;
+
+            // vertical blue gradient (deeper above, breezier below) — smooth, no banding
+            const topC = hexToRgb(params.palette[0]);
+            const midC = hexToRgb(params.palette[1]);
+            const botC = [
+                Math.round(topC[0] * 0.45 + midC[0] * 0.55),
+                Math.round(topC[1] * 0.45 + midC[1] * 0.55),
+                Math.round(topC[2] * 0.45 + midC[2] * 0.55)
+            ];
+            const lg = ctx.createLinearGradient(0, 0, 0, height);
+            lg.addColorStop(0, `rgb(${topC[0]},${topC[1]},${topC[2]})`);
+            lg.addColorStop(1, `rgb(${botC[0]},${botC[1]},${botC[2]})`);
+            ctx.fillStyle = lg;
+            ctx.fillRect(0, 0, width, height);
+
+            // soft halo around the pupil
+            const [r2, g2, b2] = hexToRgb(params.palette[2]);
+            const halo = ctx.createRadialGradient(focus.x, focus.y, 0, focus.x, focus.y, 560);
+            halo.addColorStop(0,    `rgba(${r2},${g2},${b2},0.22)`);
+            halo.addColorStop(0.45, `rgba(${r2},${g2},${b2},0.08)`);
+            halo.addColorStop(1,    `rgba(${r2},${g2},${b2},0)`);
+            ctx.fillStyle = halo;
+            ctx.fillRect(0, 0, width, height);
+
+            // cool counter-glow lower-right for balance
+            const cg = ctx.createRadialGradient(width * 0.84, height * 0.86, 0, width * 0.84, height * 0.86, 520);
+            cg.addColorStop(0, `rgba(${midC[0]},${midC[1]},${midC[2]},0.18)`);
+            cg.addColorStop(1, `rgba(${midC[0]},${midC[1]},${midC[2]},0)`);
+            ctx.fillStyle = cg;
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        function hexToRgb(hex) {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [255, 255, 255];
+        }
+
+        // pre-compute the speed→colour ramp once (perf: no per-frame colour alloc)
+        function buildGradient() {
+            const stops = params.palette.map(h => color(h));
+            const N = 64;
+            gradientColors = [];
+            for (let i = 0; i < N; i++) {
+                const tt = i / (N - 1);
+                let c = (tt < 0.5)
+                    ? lerpColor(stops[0], stops[1], tt / 0.5)
+                    : lerpColor(stops[1], stops[2], (tt - 0.5) / 0.5);
+                c.setAlpha(map(i, 0, N - 1, 85, 235)); // slow → dim, fast → bright
+                gradientColors.push(c);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Main loop
+        // ═══════════════════════════════════════════════════════════════════
+        function draw() {
+            const t = frameCount * 0.003;
+
+            // 1. translucent wash toward the graded backdrop (lower alpha = longer trails)
+            push();
+            tint(255, params.trailFade);
+            image(bgImg, 0, 0, width, height);
+            pop();
+
+            const breathV = 0.5 + 0.5 * Math.sin(frameCount * 0.011) * params.breath;
+
+            // 2. emit rings at a rate modulated by rippleRate
+            const interval = Math.max(4, Math.round(22 / params.rippleRate));
+            if (frameCount % interval === 0 && ripples.length < params.rippleCount) spawnRipple();
+
+            // 3. paint back-to-front
+            drawIrisFibers();
+            drawFocusGlow(breathV);
+            drawRipples();
+            drawOrbs(t);
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update(t);
+                particles[i].display();
+            }
+
+            drawSparkles();
+        }
+
+        function spawnRipple() {
+            ripples.push({ r: 0, speed: random(1.6, 2.6), off: random(1000) });
+        }
+
+        function drawRipples() {
+            noFill();
+            const base = color(params.palette[2]);
+            const steps = 150;
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const rip = ripples[i];
+                rip.r += rip.speed;
+
+                const a = Math.pow(Math.max(0, 1 - rip.r / maxR), 1.4);
+                if (a <= 0.012 || rip.r > maxR) { ripples.splice(i, 1); continue; }
+
+                base.setAlpha(a * 100);
+                stroke(base);
+                strokeWeight(1.1);
+                beginShape();
+                for (let s = 0; s <= steps; s++) {
+                    const ang = (s / steps) * TWO_PI;
+                    const n = noise(Math.cos(ang) * 0.7 + rip.off,
+                                    Math.sin(ang) * 0.7 + rip.off,
+                                    frameCount * 0.004);
+                    const rad = rip.r * (1 + (n - 0.5) * 0.14);
+                    vertex(focus.x + Math.cos(ang) * rad, focus.y + Math.sin(ang) * rad);
+                }
+                endShape(CLOSE);
+            }
+        }
+
+        function drawIrisFibers() {
+            const c = color(params.palette[2]);
+            const rot = frameCount * 0.0016;
+            for (let i = 0; i < fibers.length; i++) {
+                const f = fibers[i];
+                const a = f.a + rot + (noise(f.off, frameCount * 0.002) - 0.5) * 0.3;
+                c.setAlpha(16 + 12 * noise(f.off + 9, frameCount * 0.004));
+                stroke(c);
+                strokeWeight(f.w);
+                line(focus.x + Math.cos(a) * f.r0, focus.y + Math.sin(a) * f.r0,
+                     focus.x + Math.cos(a) * f.r1, focus.y + Math.sin(a) * f.r1);
+            }
+        }
+
+        function drawFocusGlow(breathV) {
+            noStroke();
+            const glow = color(params.palette[2]);
+            const layers = 12;
+            for (let k = layers; k >= 1; k--) {
+                const rad = (12 + k * 10) * (0.9 + breathV * 0.4);
+                glow.setAlpha((1 - k / layers) * 11 * (0.4 + breathV));
+                fill(glow);
+                circle(focus.x, focus.y, rad * 2);
+            }
+            // bright iris edge + dark pupil — the "瞳"
+            const core = color(params.palette[2]);
+            core.setAlpha(110 + 90 * breathV);
+            fill(core);
+            circle(focus.x, focus.y, 10 + 8 * breathV);
+
+            const pupil = color(params.palette[0]);
+            pupil.setAlpha(170);
+            fill(pupil);
+            circle(focus.x, focus.y, 6);
+        }
+
+        function drawSparkles() {
+            const c = color(params.palette[2]);
+            noStroke();
+            for (let i = 0; i < sparkles.length; i++) {
+                const s = sparkles[i];
+                const tw = 0.5 + 0.5 * Math.sin(frameCount * s.sp + s.ph);
+                c.setAlpha(25 + 185 * tw * tw);
+                fill(c);
+                circle(s.x, s.y, s.r * (0.7 + tw));
+            }
+        }
+
+        function drawOrbs(t) {
+            for (let i = 0; i < orbs.length; i++) {
+                orbs[i].update(t);
+                orbs[i].display();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Motes — flow-field drifters with a persistent trail
+        // ═══════════════════════════════════════════════════════════════════
+        class Particle {
+            constructor(init) {
+                this.spd = random(0.5, 1.9);
+                this.off = random(1000);
+                if (init) {
+                    this.x = random(width);
+                    this.y = random(height);
+                } else {
+                    this.birth();
+                }
+                this.px = this.x;
+                this.py = this.y;
+            }
+
+            birth() { // reborn from the pupil's glow
+                const ang = random(TWO_PI);
+                const rr = random(0, 44);
+                this.x = focus.x + Math.cos(ang) * rr;
+                this.y = focus.y + Math.sin(ang) * rr;
+                this.spd = random(0.5, 1.9);
+                this.off = random(1000);
+                this.px = this.x;
+                this.py = this.y;
+            }
+
+            update(t) {
+                const sc = params.noiseScale;
+                const n = noise(this.x * sc, this.y * sc, t + this.off * 0.0001);
+                const ang = n * TWO_PI * 2.4;
+
+                let vx = Math.cos(ang) * this.spd;
+                let vy = Math.sin(ang) * this.spd;
+
+                // gentle outward bias — light leaving the pupil
+                const dx = this.x - focus.x;
+                const dy = this.y - focus.y;
+                const d = Math.hypot(dx, dy) || 1;
+                vx += (dx / d) * 0.12;
+                vy += (dy / d) * 0.12;
+
+                const k = params.driftSpeed;
+                this.px = this.x;
+                this.py = this.y;
+                this.x += vx * k;
+                this.y += vy * k;
+
+                if (this.x < -20 || this.x > width + 20 || this.y < -20 || this.y > height + 20) {
+                    this.birth();
+                }
+            }
+
+            display() {
+                const idx = Math.floor(constrain(this.spd / 2.0, 0, 1) * (gradientColors.length - 1));
+                stroke(gradientColors[idx]);
+                strokeWeight(1.0);
+                line(this.px, this.py, this.x, this.y);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Orbs — soft bokeh for parallax depth
+        // ═══════════════════════════════════════════════════════════════════
+        class Orb {
+            constructor() {
+                this.x = random(width);
+                this.y = random(height);
+                this.r = random(6, 36);
+                this.spd = random(0.15, 0.6);
+                this.hue = random(0.45, 1);
+                this.vx = random(-0.4, 0.4);
+                this.vy = random(-0.35, 0.35);
+                this.off = random(1000);
+            }
+
+            update(t) {
+                const n = noise(this.x * 0.0012, this.y * 0.0012, t * 0.4 + this.off);
+                this.x += Math.cos(n * TWO_PI * 2) * this.spd + this.vx;
+                this.y += Math.sin(n * TWO_PI * 2) * this.spd + this.vy;
+                if (this.x < -40) this.x = width + 40;
+                if (this.x > width + 40) this.x = -40;
+                if (this.y < -40) this.y = height + 40;
+                if (this.y > height + 40) this.y = -40;
+            }
+
+            display() {
+                const c = lerpColor(color(params.palette[1]), color(params.palette[2]), this.hue);
+                noStroke();
+                for (let k = 6; k >= 1; k--) {
+                    c.setAlpha(map(k, 1, 6, 34, 3));
+                    fill(c);
+                    circle(this.x, this.y, (this.r * k / 6) * 2);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // UI handlers
+        // ═══════════════════════════════════════════════════════════════════
+        function updateParam(name, value) {
+            params[name] = parseFloat(value);
+            const v = document.getElementById(name + '-value');
+            if (v) v.textContent = value;
+            // structural params need a rebuild; the rest are live
+            if (name === 'particleCount' || name === 'noiseScale') initializeSystem();
+        }
+
+        function updateColor(index, value) {
+            params.palette[index] = value;
+            const v = document.getElementById('color' + (index + 1) + '-value');
+            if (v) v.textContent = value;
+            buildBackground();
+            buildGradient();
+        }
+
+        function downloadPNG() {
+            saveCanvas('tidal-aperture-' + params.seed, 'png');
+        }
+
+        // ── seed controls (kept from the template) ──
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+
+            ['particleCount', 'noiseScale', 'driftSpeed', 'trailFade',
+             'rippleRate', 'rippleCount', 'breath'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = params[id];
+                const v = document.getElementById(id + '-value');
+                if (v) v.textContent = params[id];
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const c = document.getElementById('color' + (i + 1));
+                if (c) c.value = params.palette[i];
+                const cv = document.getElementById('color' + (i + 1) + '-value');
+                if (cv) cv.textContent = params.palette[i];
+            }
+
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function () {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
